@@ -1,103 +1,83 @@
-import Image from "next/image";
+'use client';
+import { useEffect } from 'react';
+import Nav from '@/components/Nav';
+import AvatarOverlay from '@/components/AvatarOverlay';
+import AvatarDirector from '@/components/AvatarDirector';
+import Section from '@/components/Section';
+import Reveal from '@/components/Reveal';
+import { useLenis } from '@/hooks/useLenis';
+import PointerDriver from '@/components/PointerDriver';
+import Hero from '@/components/Inicio';
+import Habilidades from '@/components/Habilidades';
 
-export default function Home() {
+export default function Page() {
+  const reduce = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useLenis(!reduce);
+  useEffect(() => {
+    document.documentElement.classList.add('lenis');
+    return () => document.documentElement.classList.remove('lenis');
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="min-h-svh text-white">
+      <Nav />
+      <AvatarOverlay />   {/* Canvas único en toda la página */}
+      <AvatarDirector />  {/* Conecta el avatar al scroll */}
+      <PointerDriver />
+      <Hero />
+      <Habilidades />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      {/* PROYECTOS */}
+      <Section id="proyectos">
+  <Reveal><h2 className="text-3xl md:text-4xl font-semibold">Proyectos</h2></Reveal>
+
+  <div className="mt-8 grid md:grid-cols-3 gap-6">
+    {[
+      { title: 'Emonical — PWA Salud', desc: 'PWA con offline + métricas.', link: '#', image: '/p1.png' },
+      { title: 'DentalCare AR',        desc: 'Demo AR educativa.',         link: '#', image: '/p2.png' },
+      { title: 'Portafolio STH',       desc: 'Next.js + GSAP + R3F.',      link: '#', image: '/p3.png' },
+    ].map((p) => (
+      <Reveal key={p.title}>
+        <article className="group rounded-2xl overflow-hidden bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition">
+          <div className="aspect-video bg-black/30">
+            {/* Usa tus imágenes reales en /public */}
+            <img src={p.image} alt={p.title} className="w-full h-full object-cover transition transform group-hover:scale-[1.03]" />
+
+
+          </div>
+          <div className="p-5">
+            <h3 className="text-lg font-medium">{p.title}</h3>
+            <p className="mt-1 text-sm text-zinc-300">{p.desc}</p>
+            <a href={p.link} className="mt-3 inline-block text-emerald-300 transition group-hover:translate-x-0.5">
+              Visitar →
+            </a>
+          </div>
+        </article>
+      </Reveal>
+    ))}
+  </div>
+      </Section>
+    
+    {/* CONTACTO */}
+        <Section id="contacto" className="text-center">
+          <Reveal><h2 className="text-3xl md:text-4xl font-semibold">¿Hablamos?</h2></Reveal>
+          <Reveal>
+            <p className="mt-3 text-zinc-300">
+              Escríbeme a <a className="underline decoration-emerald-400 underline-offset-4"
+              href="mailto:tu.email@dominio.com">tu.email@dominio.com</a>
+            </p>
+          </Reveal>
+          <Reveal>
+            <a href="mailto:tu.email@dominio.com"
+               className="inline-block mt-8 rounded-2xl px-6 py-3 bg-emerald-400 text-black hover:bg-emerald-300 transition">
+              Enviar correo
+            </a>
+          </Reveal>
+        </Section>
+        
+        
+    </main>
   );
 }

@@ -10,6 +10,10 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Colores personalizados */
+  --color-brand-300: #10e6c5;
+  --color-brand-400: #10e6c5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +27,63 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Lenis (scroll suave) */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto; }
+.lenis.lenis-scrolling iframe { pointer-events: none; }
+
+@layer utilities {
+  /* Subrayado que se desplaza */
+  @keyframes underline {
+    0%   { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Pulso del bracket izquierdo */
+  @keyframes bracket {
+    0%, 100% { 
+      opacity: 1; 
+      transform: scaleY(1); 
+    }
+    50% { 
+      opacity: 0.6; 
+      transform: scaleY(0.95); 
+    }
+  }
+
+  /* Pulso de los brackets laterales */
+  @keyframes pulse-bracket {
+    0%,100% { filter: drop-shadow(0 0 6px rgba(16,230,197,.5)); }
+    50%     { filter: drop-shadow(0 0 14px rgba(83,161,255,.6)); }
+  }
+}
+
+ @keyframes bracket {
+            0%, 100% { opacity: 1; transform: scaleY(1); }
+            50% { opacity: 0.6; transform: scaleY(0.95); }
+          }
+          @keyframes underline {
+            0% { background-position: 0% 0; }
+            100% { background-position: 200% 0; }
+          }
+
+@keyframes draw {
+  0% {
+    stroke-dashoffset: 1200;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.3;
+  }
+  
 }
