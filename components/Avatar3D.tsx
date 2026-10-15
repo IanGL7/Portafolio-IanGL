@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -71,13 +71,6 @@ function ContextGuard({ onError }: { onError: () => void }) {
   return null;
 }
 
-function WebGLFallback({ onError }: { onError: () => void }) {
-  useEffect(() => {
-    onError();
-  }, [onError]);
-  return null;
-}
-
 export default function Avatar3D({
   onReady,
   onError,
@@ -85,13 +78,29 @@ export default function Avatar3D({
   onReady: () => void;
   onError: () => void;
 }) {
+  // Canvas fallback children mount even when the browser supports WebGL.
+  // Only an actual context-creation error should disable the renderer.
+  const bindCanvas = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      if (!canvas) return;
+      const onCreationError = () => onError();
+      canvas.addEventListener("webglcontextcreationerror", onCreationError);
+      return () =>
+        canvas.removeEventListener(
+          "webglcontextcreationerror",
+          onCreationError,
+        );
+    },
+    [onError],
+  );
   return (
     <Canvas
+      ref={bindCanvas}
       frameloop="demand"
       camera={{ position: [0, 0, 4.5], fov: 38, near: 0.05, far: 30 }}
       dpr={[1, 1.25]}
       gl={{ antialias: true, alpha: true }}
-      fallback={<WebGLFallback onError={onError} />}
+      fallback={<span>Tu navegador no admite el elemento canvas.</span>}
     >
       <ambientLight intensity={1.6} />
       <directionalLight position={[3, 5, 4]} intensity={2.5} />
