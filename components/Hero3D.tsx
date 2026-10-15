@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useRef, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -24,12 +24,15 @@ function Spinner() {
 }
 
 
-export default function Hero3D() {
-  const [isMobile, setIsMobile] = useState(false);
+const mobileQuery = '(max-width: 767px)';
+function subscribeMobile(onChange: () => void) {
+  const media = window.matchMedia(mobileQuery);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
 
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []);
+export default function Hero3D() {
+  const isMobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(mobileQuery).matches, () => true);
 
   if (isMobile) {
     // fallback: animación Lottie en lugar de 3D

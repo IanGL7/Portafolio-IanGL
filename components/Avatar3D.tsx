@@ -1,74 +1,69 @@
-'use client';
-import { Suspense, useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
-import * as THREE from 'three';
-import { useAvatar } from '@/stores/avatar';
+"use client";
+import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
+import * as THREE from "three";
 
-function Model() {
+function Model({ onReady }: { onReady: () => void }) {
   const root = useRef<THREE.Group>(null);
-  const { scene } = useGLTF('/models/avatar.glb');
-  const { position, rotation, scale, pointer } = useAvatar();
-  const baseScale = useRef(1);
-
+  const reducedMotion = useRef(false);
   useEffect(() => {
-    // centra el modelo y calcula una escala base
-    const box = new THREE.Box3().setFromObject(scene);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    scene.position.sub(center);
-
-    const sphere = new THREE.Sphere();
-    box.getBoundingSphere(sphere);
-    const targetRadius = 0.7;
-    baseScale.current = sphere.radius ? targetRadius / sphere.radius : 1;
-
-    // evita recortes por frustum culling agresivo
-    scene.traverse((o: any) => { if (o.isMesh) o.frustumCulled = false; });
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => { reducedMotion.current = media.matches; };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const { scene } = useGLTF("/models/avatar.glb");
+  const centered = useMemo(() => {
+    const copy = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(copy);
+    const center = box.getCenter(new THREE.Vector3());
+    copy.position.sub(center);
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    return { scene: copy, scale: sphere.radius ? 0.8 / sphere.radius : 1 };
   }, [scene]);
-
-  const ROT_X = 0.18, ROT_Y = 0.30, POS_X = 0.12, POS_Y = 0.08, ROLL = 0.05;
-
-  useFrame((_, dt) => {
+  useEffect(() => {
+    onReady();
+  }, [onReady]);
+  useFrame(({ pointer }, dt) => {
     if (!root.current) return;
-    const k = 1 - Math.pow(0.001, dt * 60);
-    const [nx, ny] = pointer;
-
-    const tx = position[0] + nx * POS_X;
-    const ty = position[1] - ny * POS_Y;
-    const tz = position[2];
-
-    const rx = rotation[0] + (-ny) * ROT_X;
-    const ry = rotation[1] + nx * ROT_Y;
-    const rz = rotation[2] + nx * ny * ROLL;
-
-    root.current.position.lerp(new THREE.Vector3(tx, ty, tz), k);
-    root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, rx, k);
-    root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, ry, k);
-    root.current.rotation.z = THREE.MathUtils.lerp(root.current.rotation.z, rz, k);
-
-    const s = THREE.MathUtils.lerp(root.current.scale.x, baseScale.current * scale, k);
-    root.current.scale.setScalar(s);
+    const factor = 1 - Math.exp(-8 * dt);
+    const reduced = reducedMotion.current;
+    root.current.rotation.y = THREE.MathUtils.lerp(
+      root.current.rotation.y,
+      reduced ? 0 : pointer.x * 0.25,
+      factor,
+    );
+    root.current.rotation.x = THREE.MathUtils.lerp(
+      root.current.rotation.x,
+      reduced ? 0 : -pointer.y * 0.12,
+      factor,
+    );
   });
-
-  return <primitive ref={root} object={scene} />;
+  return (
+    <group ref={root} scale={centered.scale}>
+      <primitive object={centered.scene} />
+    </group>
+  );
 }
 
-useGLTF.preload('/models/avatar.glb');
-
-export default function Avatar3D() {
+export default function Avatar3D({ onReady }: { onReady: () => void }) {
   return (
     <Canvas
-      className="absolute inset-0"
-      style={{ pointerEvents: 'none' }}                 // no bloquear la UI
-      camera={{ position: [0, 0.6, 2.5], fov: 38, near: 0.01, far: 100 }}
+      camera={{ position: [0, 0, 2.5], fov: 40, near: 0.01, far: 100 }}
       dpr={[1, 1.25]}
       gl={{ antialias: true, alpha: true }}
+      fallback={
+        <p className="avatar-notice" role="status">
+          La vista 3D no está disponible en este dispositivo.
+        </p>
+      }
     >
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[3, 6, 3]} intensity={1} />
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[3, 6, 3]} intensity={2} />
       <Suspense fallback={null}>
-        <Model />
+        <Model onReady={onReady} />
       </Suspense>
     </Canvas>
   );
