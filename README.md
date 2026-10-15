@@ -43,9 +43,24 @@ Para activar la descarga del CV:
 
 Mientras no haya un PDF configurado, la navegación muestra un enlace real a GitHub.
 
-## Avatar
+## Avatar y scroll
 
-Se muestra primero la ilustración local optimizada por Next.js. El modelo 3D de aproximadamente 21 MB se descarga únicamente al activar el botón correspondiente. Si falla el modelo o WebGL, permanece la imagen alternativa. La vista 3D respeta movimiento reducido y se limita al área del avatar.
+El avatar 3D se carga automáticamente y utiliza `public/models/avatar-scroll.glb` (1.28 MB). El modelo original (21 MB) se conserva como fuente, pero no se descarga desde la página.
+
+- Optimización: Meshopt, texturas WebP de hasta 1024 px y simplificación con tolerancia 0.0005. El decodificador Meshopt se empaqueta con Drei; no depende de un CDN Draco.
+- `AvatarDirector` conecta el desplazamiento nativo con un único avatar. Mide anclas reales y recalcula las posiciones al cambiar el tamaño o el contenido.
+- En escritorio, a partir de 1100 px, cada sección reserva una columna para el avatar. La trayectoria funciona al avanzar, retroceder y entrar directamente con `#proyectos` u otra ancla.
+- En móvil o con movimiento reducido, el avatar permanece dentro del inicio y sale de pantalla con esa sección.
+- La interpolación depende del tiempo, no de la frecuencia de pantalla. No se mezcla con Lenis ni se interceptan eventos de rueda o touch.
+- El canvas usa `frameloop="demand"`: los cambios de pose invalidan los fotogramas y el render se detiene al estabilizarse.
+- Una imagen permanece visible durante la carga, ante un error del archivo o si WebGL no está disponible. El botón permite alternar o reintentar el 3D.
+- El centro geométrico se aplica al objeto interior; la rotación y escala del scroll se aplican al grupo padre.
+
+Optimización reproducible:
+
+```bash
+npx @gltf-transform/cli@4.2.1 optimize public/models/avatar.glb public/models/avatar-scroll.glb --compress meshopt --texture-compress webp --texture-size 1024 --simplify-ratio 0.3 --simplify-error 0.0005
+```
 
 ## Caché
 

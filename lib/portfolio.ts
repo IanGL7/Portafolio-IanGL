@@ -34,7 +34,7 @@ export const projects = [
     title: "Portafolio IanGL",
     category: "Sitio personal",
     description:
-      "Mi espacio para presentar habilidades y proyectos, con diseño adaptable y un avatar 3D que puedes activar.",
+      "Mi espacio para presentar habilidades y proyectos, con diseño adaptable y un avatar 3D que acompaña el recorrido.",
     tags: ["Next.js", "React", "Three.js"],
     url: "https://github.com/IanGL7/Portafolio-IanGL",
     symbol: "</>",
