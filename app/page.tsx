@@ -1,83 +1,119 @@
-'use client';
-import { useEffect } from 'react';
-import Nav from '@/components/Nav';
-import AvatarOverlay from '@/components/AvatarOverlay';
-import AvatarDirector from '@/components/AvatarDirector';
-import Section from '@/components/Section';
-import Reveal from '@/components/Reveal';
-import { useLenis } from '@/hooks/useLenis';
-import PointerDriver from '@/components/PointerDriver';
-import Hero from '@/components/Inicio';
-import Habilidades from '@/components/Habilidades';
+import Nav from "@/components/Nav";
+import Hero from "@/components/Inicio";
+import Habilidades from "@/components/Habilidades";
+import Section from "@/components/Section";
+import { profile, projects } from "@/lib/portfolio";
 
 export default function Page() {
-  const reduce = typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  useLenis(!reduce);
-  useEffect(() => {
-    document.documentElement.classList.add('lenis');
-    return () => document.documentElement.classList.remove('lenis');
-  }, []);
-
   return (
-    <main className="min-h-svh text-white">
+    <>
+      <a className="skip-link" href="#contenido">
+        Saltar al contenido
+      </a>
       <Nav />
-      <AvatarOverlay />   {/* Canvas único en toda la página */}
-      <AvatarDirector />  {/* Conecta el avatar al scroll */}
-      <PointerDriver />
-      <Hero />
-      <Habilidades />
-
-      {/* PROYECTOS */}
-      <Section id="proyectos">
-  <Reveal><h2 className="text-3xl md:text-4xl font-semibold">Proyectos</h2></Reveal>
-
-  <div className="mt-8 grid md:grid-cols-3 gap-6">
-    {[
-      { title: 'Emonical — PWA Salud', desc: 'PWA con offline + métricas.', link: '#', image: '/p1.png' },
-      { title: 'DentalCare AR',        desc: 'Demo AR educativa.',         link: '#', image: '/p2.png' },
-      { title: 'Portafolio STH',       desc: 'Next.js + GSAP + R3F.',      link: '#', image: '/p3.png' },
-    ].map((p) => (
-      <Reveal key={p.title}>
-        <article className="group rounded-2xl overflow-hidden bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition">
-          <div className="aspect-video bg-black/30">
-            {/* Usa tus imágenes reales en /public */}
-            <img src={p.image} alt={p.title} className="w-full h-full object-cover transition transform group-hover:scale-[1.03]" />
-
-
-          </div>
-          <div className="p-5">
-            <h3 className="text-lg font-medium">{p.title}</h3>
-            <p className="mt-1 text-sm text-zinc-300">{p.desc}</p>
-            <a href={p.link} className="mt-3 inline-block text-emerald-300 transition group-hover:translate-x-0.5">
-              Visitar →
-            </a>
-          </div>
-        </article>
-      </Reveal>
-    ))}
-  </div>
-      </Section>
-    
-    {/* CONTACTO */}
-        <Section id="contacto" className="text-center">
-          <Reveal><h2 className="text-3xl md:text-4xl font-semibold">¿Hablamos?</h2></Reveal>
-          <Reveal>
-            <p className="mt-3 text-zinc-300">
-              Escríbeme a <a className="underline decoration-emerald-400 underline-offset-4"
-              href="mailto:tu.email@dominio.com">tu.email@dominio.com</a>
+      <main id="contenido">
+        <Hero />
+        <Habilidades />
+        <Section id="proyectos">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">02 / Proyectos</p>
+              <h2>
+                Código que puedes explorar<span>.</span>
+              </h2>
+            </div>
+            <p>
+              Una selección de mis repositorios públicos. Conoce las tecnologías
+              y explora su implementación.
             </p>
-          </Reveal>
-          <Reveal>
-            <a href="mailto:tu.email@dominio.com"
-               className="inline-block mt-8 rounded-2xl px-6 py-3 bg-emerald-400 text-black hover:bg-emerald-300 transition">
-              Enviar correo
-            </a>
-          </Reveal>
+          </div>
+          <div className="projects-grid">
+            {projects.map((project, index) => (
+              <article key={project.title} className="project-card">
+                <div
+                  className={`project-art project-art-${index}`}
+                  aria-hidden="true"
+                >
+                  <div className="art-window">
+                    <div className="art-dots">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <div className="art-symbol">{project.symbol}</div>
+                    <div className="art-lines">
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                  </div>
+                  <span className="art-caption">{project.category}</span>
+                </div>
+                <div className="project-body">
+                  <p className="project-number">
+                    0{index + 1} / {project.category}
+                  </p>
+                  <h3>{project.title}</h3>
+                  <p>{project.description}</p>
+                  <ul className="tags" aria-label="Tecnologías">
+                    {project.tags.map((tag) => (
+                      <li key={tag}>{tag}</li>
+                    ))}
+                  </ul>
+                  <a
+                    className="text-link"
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Ver código de ${project.title} en GitHub (abre otra pestaña)`}
+                  >
+                    Ver código <span aria-hidden="true">↗</span>
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+          <a
+            className="all-projects text-link"
+            href={`${profile.github}?tab=repositories`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Explorar mis repositorios <span aria-hidden="true">↗</span>
+          </a>
         </Section>
-        
-        
-    </main>
+        <Section id="contacto">
+          <div className="contact-panel">
+            <p className="eyebrow">03 / Contacto</p>
+            <h2>
+              ¿Creamos algo
+              <br />
+              <span>juntos?</span>
+            </h2>
+            <p>
+              Si buscas colaborar en un proyecto de desarrollo web, conoce mi
+              trabajo y conecta conmigo en GitHub.
+            </p>
+            <a
+              className="button button-primary"
+              href={profile.contactUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Conectar en GitHub <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </Section>
+      </main>
+      <footer className="footer">
+        <a href="#inicio" aria-label="IanGL, volver al inicio">
+          ian<span>/&gt;</span>
+        </a>
+        <p>Ian González · Desarrollo web</p>
+        <a href={profile.github} target="_blank" rel="noopener noreferrer">
+          GitHub ↗
+        </a>
+      </footer>
+    </>
   );
 }

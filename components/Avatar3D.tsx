@@ -1,74 +1,104 @@
-'use client';
-import { Suspense, useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
-import * as THREE from 'three';
-import { useAvatar } from '@/stores/avatar';
+"use client";
+import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
+import * as THREE from "three";
+import { useAvatar } from "@/stores/avatar";
 
-function Model() {
-  const root = useRef<THREE.Group>(null);
-  const { scene } = useGLTF('/models/avatar.glb');
-  const { position, rotation, scale, pointer } = useAvatar();
-  const baseScale = useRef(1);
-
-  useEffect(() => {
-    // centra el modelo y calcula una escala base
-    const box = new THREE.Box3().setFromObject(scene);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    scene.position.sub(center);
-
-    const sphere = new THREE.Sphere();
-    box.getBoundingSphere(sphere);
-    const targetRadius = 0.7;
-    baseScale.current = sphere.radius ? targetRadius / sphere.radius : 1;
-
-    // evita recortes por frustum culling agresivo
-    scene.traverse((o: any) => { if (o.isMesh) o.frustumCulled = false; });
-  }, [scene]);
-
-  const ROT_X = 0.18, ROT_Y = 0.30, POS_X = 0.12, POS_Y = 0.08, ROLL = 0.05;
-
-  useFrame((_, dt) => {
-    if (!root.current) return;
-    const k = 1 - Math.pow(0.001, dt * 60);
-    const [nx, ny] = pointer;
-
-    const tx = position[0] + nx * POS_X;
-    const ty = position[1] - ny * POS_Y;
-    const tz = position[2];
-
-    const rx = rotation[0] + (-ny) * ROT_X;
-    const ry = rotation[1] + nx * ROT_Y;
-    const rz = rotation[2] + nx * ny * ROLL;
-
-    root.current.position.lerp(new THREE.Vector3(tx, ty, tz), k);
-    root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, rx, k);
-    root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, ry, k);
-    root.current.rotation.z = THREE.MathUtils.lerp(root.current.rotation.z, rz, k);
-
-    const s = THREE.MathUtils.lerp(root.current.scale.x, baseScale.current * scale, k);
-    root.current.scale.setScalar(s);
-  });
-
-  return <primitive ref={root} object={scene} />;
+const MODEL_URL = "/models/avatar-scroll.glb";
+export function resetAvatarModel() {
+  useGLTF.clear(MODEL_URL);
 }
 
-useGLTF.preload('/models/avatar.glb');
+function Model({ onReady }: { onReady: () => void }) {
+  const root = useRef<THREE.Group>(null);
+  // Meshopt's decoder ships with the app; no external Draco CDN is required.
+  const { scene } = useGLTF(MODEL_URL, false, true);
+  const invalidate = useThree((state) => state.invalidate);
+  const normalized = useMemo(() => {
+    const copy = scene.clone(true);
+    copy.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(copy);
+    const size = box.getSize(new THREE.Vector3());
+    copy.position.sub(box.getCenter(new THREE.Vector3()));
+    return { scene: copy, scale: size.y > 0 ? 1.65 / size.y : 1 };
+  }, [scene]);
+  const pointer = useRef<[number, number]>([0, 0]);
+  useEffect(() => {
+    const unsubscribe = useAvatar.subscribe(() => invalidate());
+    invalidate();
+    return unsubscribe;
+  }, [invalidate]);
+  useEffect(() => {
+    onReady();
+  }, [onReady]);
+  useFrame((_, delta) => {
+    if (!root.current) return;
+    const state = useAvatar.getState();
+    const factor = state.reducedMotion
+      ? 1
+      : 1 - Math.exp(-12 * Math.min(delta, 0.1));
+    pointer.current[0] += (state.pointer[0] - pointer.current[0]) * factor;
+    pointer.current[1] += (state.pointer[1] - pointer.current[1]) * factor;
+    root.current.rotation.set(
+      state.rotation[0] - pointer.current[1] * 0.08,
+      state.rotation[1] + pointer.current[0] * 0.12,
+      state.rotation[2],
+    );
+    root.current.scale.setScalar(normalized.scale * state.scale);
+    if (
+      Math.abs(pointer.current[0] - state.pointer[0]) +
+        Math.abs(pointer.current[1] - state.pointer[1]) >
+      0.001
+    )
+      invalidate();
+  });
+  // The inner primitive keeps its centering transform; scroll transforms affect the parent only.
+  return (
+    <group ref={root} scale={normalized.scale} dispose={null}>
+      <primitive object={normalized.scene} />
+    </group>
+  );
+}
 
-export default function Avatar3D() {
+function ContextGuard({ onError }: { onError: () => void }) {
+  const gl = useThree((state) => state.gl);
+  useEffect(() => {
+    const onLost = () => onError();
+    gl.domElement.addEventListener("webglcontextlost", onLost);
+    return () => gl.domElement.removeEventListener("webglcontextlost", onLost);
+  }, [gl, onError]);
+  return null;
+}
+
+function WebGLFallback({ onError }: { onError: () => void }) {
+  useEffect(() => {
+    onError();
+  }, [onError]);
+  return null;
+}
+
+export default function Avatar3D({
+  onReady,
+  onError,
+}: {
+  onReady: () => void;
+  onError: () => void;
+}) {
   return (
     <Canvas
-      className="absolute inset-0"
-      style={{ pointerEvents: 'none' }}                 // no bloquear la UI
-      camera={{ position: [0, 0.6, 2.5], fov: 38, near: 0.01, far: 100 }}
+      frameloop="demand"
+      camera={{ position: [0, 0, 4.5], fov: 38, near: 0.05, far: 30 }}
       dpr={[1, 1.25]}
       gl={{ antialias: true, alpha: true }}
+      fallback={<WebGLFallback onError={onError} />}
     >
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[3, 6, 3]} intensity={1} />
+      <ambientLight intensity={1.6} />
+      <directionalLight position={[3, 5, 4]} intensity={2.5} />
+      <directionalLight position={[-3, 1, 1]} intensity={0.7} />
+      <ContextGuard onError={onError} />
       <Suspense fallback={null}>
-        <Model />
+        <Model onReady={onReady} />
       </Suspense>
     </Canvas>
   );

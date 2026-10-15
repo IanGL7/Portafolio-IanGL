@@ -1,5 +1,5 @@
-'use client';
-import { create } from 'zustand';
+"use client";
+import { create } from "zustand";
 
 export type V3 = [number, number, number];
 export type V2 = [number, number];
@@ -8,8 +8,9 @@ type AvatarState = {
   position: V3;
   rotation: V3;
   scale: number;
-  pointer: V2;                 // <- nuevo: [-1..1, -1..1]
-  set: (patch: Partial<Omit<AvatarState, 'set'>>) => void;
+  pointer: V2; // <- nuevo: [-1..1, -1..1]
+  reducedMotion: boolean;
+  set: (patch: Partial<Omit<AvatarState, "set">>) => void;
 };
 
 export const useAvatar = create<AvatarState>((set) => ({
@@ -17,5 +18,6 @@ export const useAvatar = create<AvatarState>((set) => ({
   rotation: [0, 0, 0],
   scale: 1,
   pointer: [0, 0],
+  reducedMotion: false,
   set: (patch) => set(patch),
 }));

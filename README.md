@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portafolio IanGL
 
-## Getting Started
+Portafolio de Ian González, construido con Next.js, React, TypeScript y Tailwind CSS. Presenta habilidades, proyectos públicos y enlaces al perfil de GitHub.
 
-First, run the development server:
+## Desarrollo
+
+Requiere Node.js 20.9 o superior.
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Validación y producción
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La interfaz utiliza fuentes del sistema y no requiere acceso a Google Fonts para compilar.
 
-## Learn More
+## Editar el contenido
 
-To learn more about Next.js, take a look at the following resources:
+- `lib/portfolio.ts`: proyectos, perfil y contacto.
+- `components/Inicio.tsx`: presentación.
+- `components/Habilidades.tsx`: habilidades.
+- `app/globals.css`: diseño adaptable, colores y movimiento reducido.
+- `app/layout.tsx`: idioma, metadatos y viewport.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Las tarjetas de proyectos usan ilustraciones CSS decorativas; no son capturas de las aplicaciones. Solo se enlazan repositorios públicos existentes, sin prometer demostraciones o resultados no verificados.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Contacto y CV
 
-## Deploy on Vercel
+El contacto público actual es el perfil de GitHub. Para agregar correo, configura `contactUrl` con una dirección `mailto:` y adapta el texto del botón en `app/page.tsx`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Para activar la descarga del CV:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Coloca el PDF definitivo en `public/cv/Ian-Gonzalez-CV.pdf`.
+2. Establece `profile.cvUrl` como `/cv/Ian-Gonzalez-CV.pdf`.
+
+Mientras no haya un PDF configurado, la navegación muestra un enlace real a GitHub.
+
+## Avatar y scroll
+
+El avatar 3D se carga automáticamente y utiliza `public/models/avatar-scroll.glb` (1.28 MB). El modelo original (21 MB) se conserva como fuente, pero no se descarga desde la página.
+
+- Optimización: Meshopt, texturas WebP de hasta 1024 px y simplificación con tolerancia 0.0005. El decodificador Meshopt se empaqueta con Drei; no depende de un CDN Draco.
+- `AvatarDirector` conecta el desplazamiento nativo con un único avatar. Mide anclas reales y recalcula las posiciones al cambiar el tamaño o el contenido.
+- En escritorio, a partir de 1100 px, cada sección reserva una columna para el avatar. La trayectoria funciona al avanzar, retroceder y entrar directamente con `#proyectos` u otra ancla.
+- En móvil o con movimiento reducido, el avatar permanece dentro del inicio y sale de pantalla con esa sección.
+- La interpolación depende del tiempo, no de la frecuencia de pantalla. No se mezcla con Lenis ni se interceptan eventos de rueda o touch.
+- El canvas usa `frameloop="demand"`: los cambios de pose invalidan los fotogramas y el render se detiene al estabilizarse.
+- Una imagen permanece visible durante la carga, ante un error del archivo o si WebGL no está disponible. El botón permite alternar o reintentar el 3D.
+- El centro geométrico se aplica al objeto interior; la rotación y escala del scroll se aplican al grupo padre.
+
+Optimización reproducible:
+
+```bash
+npx @gltf-transform/cli@4.2.1 optimize public/models/avatar.glb public/models/avatar-scroll.glb --compress meshopt --texture-compress webp --texture-size 1024 --simplify-ratio 0.3 --simplify-error 0.0005
+```
+
+## Caché
+
+El service worker conserva únicamente archivos estáticos de compilación con nombre versionado. Las páginas y las imágenes no utilizan una caché permanente. Al activarse elimina las cachés antiguas conocidas de este proyecto.
+
+## Publicación
+
+La rama principal se puede conectar a Vercel usando la configuración estándar de Next.js. No se requieren variables de entorno para esta versión.

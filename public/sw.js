@@ -1,61 +1,19 @@
-// public/sw.js
-const CACHE        = 'app-cache-v1';
-const ASSET_CACHE  = 'asset-cache-v1';
-const OFFLINE_URLS = ['/', '/manifest.webmanifest'];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(OFFLINE_URLS))
-      .then(() => self.skipWaiting())
-  );
+// Keep page requests fresh and cache only immutable, same-origin build assets.
+const CACHE = 'iangl-static-v2';
+const LEGACY = ['app-cache-v1', 'asset-cache-v1'];
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => LEGACY.includes(key) || (key.startsWith('iangl-static-') && key !== CACHE)).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys
-        .filter((k) => ![CACHE, ASSET_CACHE].includes(k))
-        .map((k) => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
-  if (req.method !== 'GET') return;
-
-  // Páginas: network-first con fallback a cache
-  if (req.destination === 'document') {
-    event.respondWith(
-      fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(req, copy));
-        return res;
-      }).catch(() => caches.match(req).then((res) => res || caches.match('/')))
-    );
-    return;
-  }
-
-  // Assets y Next static: cache-first
-  const isAsset =
-    ['script','style','font','image'].includes(req.destination) ||
-    url.pathname.startsWith('/_next/') ||
-    url.pathname.startsWith('/icons/');
-
-  if (isAsset) {
-    event.respondWith(
-      caches.open(ASSET_CACHE).then((cache) =>
-        cache.match(req).then((cached) =>
-          cached ||
-          fetch(req).then((res) => {
-            cache.put(req, res.clone());
-            return res;
-          })
-        )
-      )
-    );
-  }
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith('/_next/static/')) return;
+  event.respondWith(caches.open(CACHE).then(async cache => {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    const response = await fetch(request);
+    if (response.ok) await cache.put(request, response.clone());
+    return response;
+  }));
 });

@@ -1,63 +1,173 @@
-'use client';
-import { useEffect } from 'react';
-import { ensureGsap, gsap } from '@/lib/gsap';
-import { useAvatar, V3 } from '@/stores/avatar';
+"use client";
+import { useEffect, type RefObject } from "react";
+import { useAvatar } from "@/stores/avatar";
+import {
+  clamp,
+  dampAvatarPose,
+  poseKeys,
+  sampleAvatarPose,
+  type AvatarPose,
+  type AvatarStop,
+} from "@/lib/avatar-motion";
 
-// Poses por sección (ajústalas a tu gusto)
-const SCENES: Record<string, { pos: V3; rot: V3; scale: number }> = {
-  inicio:      { pos: [0.00, -0.40, 0], rot: [0,  0.00, 0], scale: 1.00 },
-  habilidades: { pos: [0.70, -0.08, 0], rot: [0,  0.25, 0], scale: 0.95 },
-  proyectos:   { pos: [-0.65,-0.12, 0], rot: [0, -0.20, 0], scale: 0.92 },
-  contacto:    { pos: [0.00, -0.08, 0], rot: [0,  0.00, 0], scale: 0.90 },
+type Props = {
+  home: RefObject<HTMLDivElement | null>;
+  floating: RefObject<HTMLDivElement | null>;
 };
+const scenes = [
+  { id: "habilidades", rotationX: -0.03, rotationY: 0.48, scale: 0.96 },
+  { id: "proyectos", rotationX: 0.04, rotationY: -0.42, scale: 1 },
+  { id: "contacto", rotationX: 0, rotationY: 0.12, scale: 1.02 },
+];
 
-const lerp = (a:number,b:number,t:number)=>a+(b-a)*t;
-const lerpV3 = (a:V3,b:V3,t:number):V3=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
-
-export default function AvatarDirector() {
-  const set = useAvatar(s=>s.set);
-
+export default function AvatarDirector({ home, floating }: Props) {
   useEffect(() => {
-    ensureGsap();
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) return;
+    const element = floating.current;
+    const origin = home.current;
+    if (!element || !origin) return;
+    const desktop = window.matchMedia("(min-width: 1100px)");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const fine = window.matchMedia("(pointer: fine)");
+    let stops: AvatarStop[] = [];
+    let current: AvatarPose | null = null;
+    let frame = 0;
+    let previousTime = 0;
+    let pointer: [number, number] = [0, 0];
+    let disposed = false;
 
-    const ids = ['inicio','habilidades','proyectos','contacto'].filter(id => !!document.getElementById(id));
-    const timelines: gsap.core.Timeline[] = [];
-
-    // Pose inicial
-    const start = SCENES[ids[0]];
-    set({ position: start.pos, rotation: start.rot, scale: start.scale });
-
-    for (let i=0;i<ids.length-1;i++){
-      const from = SCENES[ids[i]];
-      const to   = SCENES[ids[i+1]];
-      const toEl = document.getElementById(ids[i+1])!;
-
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: toEl,
-          start: 'top bottom',   // cuando entra al viewport
-          end:   'top center',   // hasta el centro
-          scrub: 1,
-        }
-      })
-      .to({}, {
-        duration: 1,
-        onUpdate: function(){
-          const t = this.progress();
-          set({
-            position: lerpV3(from.pos, to.pos, t),
-            rotation: lerpV3(from.rot, to.rot, t),
-            scale: lerp(from.scale, to.scale, t),
-          });
-        }
-      });
-
-      timelines.push(tl);
-    }
-    return () => timelines.forEach(t => t.scrollTrigger?.kill());
-  }, [set]);
-
+    const draw = (pose: AvatarPose) => {
+      element.style.position = "fixed";
+      element.style.left = "0";
+      element.style.top = "0";
+      element.style.width = `${pose.width}px`;
+      element.style.height = `${pose.height}px`;
+      element.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0)`;
+      element.style.visibility =
+        pose.y + pose.height > 0 && pose.y < window.innerHeight
+          ? "visible"
+          : "hidden";
+      useAvatar
+        .getState()
+        .set({
+          rotation: [pose.rotationX, pose.rotationY, 0],
+          scale: pose.scale,
+          pointer,
+          reducedMotion: reduced.matches,
+        });
+    };
+    const homePose = (): AvatarPose => {
+      const rect = origin.getBoundingClientRect();
+      const width = Math.min(rect.width, 380);
+      const height = Math.min(Math.max(rect.height - 78, 200), 390);
+      return {
+        x: rect.left + (rect.width - width) / 2,
+        y: rect.top + 8,
+        width,
+        height,
+        rotationX: 0,
+        rotationY: 0,
+        scale: 1,
+      };
+    };
+    const targetPose = () =>
+      desktop.matches && !reduced.matches
+        ? sampleAvatarPose(stops, Math.max(0, window.scrollY))
+        : homePose();
+    const tick = (time: number) => {
+      frame = 0;
+      if (disposed || !stops.length) return;
+      const target = targetPose();
+      // Mobile and reduced-motion follow the document exactly, with no fixed overlay trailing the scroll.
+      const animate = desktop.matches && !reduced.matches;
+      const delta = previousTime ? (time - previousTime) / 1000 : 1 / 60;
+      current =
+        animate && current ? dampAvatarPose(current, target, delta) : target;
+      previousTime = time;
+      draw(current);
+      if (
+        animate &&
+        poseKeys.some((key) => Math.abs(current![key] - target[key]) > 0.01)
+      )
+        frame = requestAnimationFrame(tick);
+      else previousTime = 0;
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+    const measure = () => {
+      const initial = homePose();
+      initial.y += window.scrollY; // Home position at scroll zero, even when loading a #section URL.
+      stops = [{ ...initial, scroll: 0 }];
+      const maxScroll = Math.max(
+        1,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      for (const scene of scenes) {
+        const anchor = document.querySelector<HTMLElement>(
+          `[data-avatar-anchor="${scene.id}"]`,
+        );
+        const section = document.getElementById(scene.id);
+        if (!anchor || !section) continue;
+        const rect = anchor.getBoundingClientRect();
+        const width = clamp(rect.width, 180, 290);
+        const height = Math.min(360, Math.max(200, window.innerHeight - 190));
+        const previous = stops[stops.length - 1].scroll;
+        const position = Math.min(
+          maxScroll,
+          section.getBoundingClientRect().top + window.scrollY - 125,
+        );
+        stops.push({
+          x: rect.left + (rect.width - width) / 2,
+          y: Math.max(105, (window.innerHeight - height) / 2),
+          width,
+          height,
+          ...scene,
+          scroll: Math.max(previous + 1, position),
+        });
+      }
+      current = targetPose();
+      pointer = [0, 0];
+      draw(current);
+      schedule();
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (reduced.matches || !fine.matches) return;
+      pointer = [
+        clamp((event.clientX / window.innerWidth) * 2 - 1, -1, 1),
+        clamp((event.clientY / window.innerHeight) * 2 - 1, -1, 1),
+      ];
+      schedule();
+    };
+    const onLeave = () => {
+      pointer = [0, 0];
+      schedule();
+    };
+    const observer = new ResizeObserver(measure);
+    document
+      .querySelectorAll("#inicio, #habilidades, #proyectos, #contacto")
+      .forEach((section) => observer.observe(section));
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", measure, { passive: true });
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    document.addEventListener("pointerleave", onLeave);
+    desktop.addEventListener("change", measure);
+    reduced.addEventListener("change", measure);
+    document.fonts.ready.then(() => {
+      if (!disposed) measure();
+    });
+    measure();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("pointermove", onPointer);
+      document.removeEventListener("pointerleave", onLeave);
+      desktop.removeEventListener("change", measure);
+      reduced.removeEventListener("change", measure);
+      element.removeAttribute("style");
+    };
+  }, [home, floating]);
   return null;
 }
